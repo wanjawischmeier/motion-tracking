@@ -16,8 +16,8 @@ def CheckForRequest():
 
 
 class DataStream:
-    def __init__(self, shm_name = "motion_tracking_data_stream"):
-        self.__shm = shm.SharedMemory(name = shm_name, create=True, size = 6)
+    def __init__(self, shm_name = "motion_tracking_data_stream", create = True):
+        self.__shm = shm.SharedMemory(name = shm_name, create=create, size = 6)
         self.__buffer = self.__shm.buf
         self.__buffer[0] = 1        # Comment this line out later, to only start writing when 'read' byte is set to true by C#
 
@@ -57,7 +57,7 @@ class DataStream:
     hand_r_pos_y =  property(__get_hand_r_pos_y, __set_hand_r_pos_y)
     tracked =       property(__get_tracked, __set_tracked)
 
-tst = DataStream()
+tst = DataStream(create = False)
 
 print("starting")
 
