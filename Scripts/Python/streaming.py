@@ -66,5 +66,5 @@ while True:
     tst.hand_l_pos_y = randint(0, 255)
     tst.hand_r_pos_x = randint(0, 255)
     tst.hand_r_pos_y = randint(0, 255)
-    sleep(.2)
+    #sleep(.05)
     #print(tst.hand_l_pos_x)

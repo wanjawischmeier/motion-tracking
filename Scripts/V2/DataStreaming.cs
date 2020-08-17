@@ -39,6 +39,7 @@ namespace Streaming
             processStartInfo.Arguments = file_path;
             processStartInfo.UseShellExecute = false;
             processStartInfo.RedirectStandardError = true;
+            processStartInfo.CreateNoWindow = true;
 
             process = new Process();
             process.StartInfo = processStartInfo;
@@ -78,12 +79,14 @@ namespace Streaming
         public delegate void BytesRecievedEventHandler(object source, BytesRecievedEventArgs args);
         public event BytesRecievedEventHandler BytesRecieved;
         public int tst = 1;
+        public string output;
 
         MemoryMappedViewStream stream;
         BinaryReader reader;
         //StreamReader streamReader;
         Process process;
         int byte_length;
+        bool quit = false;
 
         public BinaryStream(Process process, string mmf_name = "motion_tracking_data_stream", int byte_length = 6)
         {
@@ -99,12 +102,14 @@ namespace Streaming
 
         public async void ListenForBytes()
         {
-            while (true)
+            while (!quit)
             {
                 await Task.Run(() => CheckForBytes());
             }
         }
-        
+
+        public void StopListening() { quit = true; }
+
         void CheckForBytes()
         {
             BytesRecievedEventArgs args = new BytesRecievedEventArgs();
@@ -112,7 +117,7 @@ namespace Streaming
             // Core code here
             stream.Position = 0;
             byte[] bytes = reader.ReadBytes(byte_length);
-            Debug.Log($"[{String.Join(", ", bytes)}]  |  (Length: {bytes.Length})  |  ({process.HasExited})");
+            output = $"[{String.Join(",\t", bytes)}]\t|\t(Length: {bytes.Length})\t|  (running: {!process.HasExited})";
             //if (streamReader.HasExited) Debug.Log(streamReader.e);
             stream.Position = 0;
 
@@ -126,7 +131,7 @@ namespace Streaming
             OnBytesRecieved(args);
             tst++;
 
-            Thread.Sleep(1000);
+            //Thread.Sleep(100);
         }
         
         protected virtual void OnBytesRecieved(BytesRecievedEventArgs args)
