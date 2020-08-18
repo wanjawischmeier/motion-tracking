@@ -55,13 +55,6 @@ def ImageProcessing(tracking_area_l, tracking_area_r, cap, skin_colors, noisy_pi
 #extrapolate the hand to fill dark spots within
     mask_l = cv2.dilate(mask_l,kernel,iterations = 4)
     mask_r = cv2.dilate(mask_r,kernel,iterations = 4)
-
-#remove noise
-    for pixel in noisy_pixels_l:
-        cv2.circle(mask_l, pixel, 50, 255, -1)
-
-    for pixel in noisy_pixels_r:
-        cv2.circle(mask_r, pixel, 50, 255, -1)
     
 #blur the image
     mask_l = cv2.GaussianBlur(mask_l,(5,5),100) 
@@ -71,6 +64,14 @@ def ImageProcessing(tracking_area_l, tracking_area_r, cap, skin_colors, noisy_pi
     if skin_colors[2] >= 100:
         mask_l = (255 - mask_l)
         mask_r = (255 - mask_r)
+
+#remove noise
+    for pixel in noisy_pixels_l:
+        cv2.circle(mask_l, pixel, 50, 255, -1)
+        #mask_l[pixel[0], pixel[1]] = (255, 255, 255)
+
+    for pixel in noisy_pixels_r:
+        cv2.circle(mask_r, pixel, 50, 255, -1)
 
     return frame, mask_l, mask_r
 

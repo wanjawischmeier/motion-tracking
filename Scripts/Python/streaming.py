@@ -17,9 +17,27 @@ def CheckForRequest():
 
 class DataStream:
     def __init__(self, shm_name = "motion_tracking_data_stream", create = True):
-        self.__shm = shm.SharedMemory(name = shm_name, create=create, size = 6)
+        self.prepared = False
+
+        if create: self.__shm = shm.SharedMemory(name = shm_name, create=True, size = 6)
+        else:
+            while True:
+                try:
+                    self.__shm = shm.SharedMemory(name = shm_name, create=False, size = 6)
+                    break
+                except Exception:
+                    print("tryed")
+                    sleep(.2)
+
         self.__buffer = self.__shm.buf
-        self.__buffer[0] = 1        # Comment this line out later, to only start writing when 'read' byte is set to true by C#
+        #self.__buffer[0] = 1        # Comment this line out later, to only start writing when 'read' byte is set to true by C#
+
+        self.settings = Settings()
+        self.settings.skin_tone                     = self.__buffer[0]
+        self.settings.skin_darker_than_background   = self.__buffer[1]
+        self.settings.samples                       = self.__buffer[2]
+        self.settings.sensivity                     = self.__buffer[3]
+        self.prepared                               = True
 
         # self.read     = 0         # Will be set to True by C# if it wants to recieve data |   [0]         (Should not actually be set here)
         self.hand_l_pos_x      = 0  # The x position                                        |   [1]
@@ -57,6 +75,15 @@ class DataStream:
     hand_r_pos_y =  property(__get_hand_r_pos_y, __set_hand_r_pos_y)
     tracked =       property(__get_tracked, __set_tracked)
 
+
+class Settings:
+    def __init__(self):
+        self.skin_tone                      = 0
+        self.skin_darker_than_background    = False
+        self.samples                        = 0
+        self.sensivity                      = 0
+
+'''
 tst = DataStream(create = False)
 
 print("starting")
@@ -68,3 +95,4 @@ while True:
     tst.hand_r_pos_y = randint(0, 255)
     #sleep(.05)
     #print(tst.hand_l_pos_x)
+'''

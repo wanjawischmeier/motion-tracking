@@ -6,13 +6,20 @@ import ctypes
 from tracking import *
 from streaming import *
 
+stream = DataStream(create=False)
+#while stream.read == None: sleep(.2)
+stream.hand_l_pos_y = 24
+
+
 # Variables:
 
-skin_tone = 200
-samples = 20
-sensivity = 100
+skin_tone                   = stream.settings.skin_tone
+skin_darker_than_background = stream.settings.skin_darker_than_background
+samples                     = stream.settings.samples
+sensivity                   = stream.settings.sensivity
 
 # __________
+
 
 cap = cv2.VideoCapture(0)
 cv2.namedWindow('Hand Tracking')
@@ -25,6 +32,7 @@ user32 = ctypes.windll.user32
 
 for i in range(40):
     frame = ReadFrame(cap)
+    if skin_darker_than_background: frame = 255 - frame
     cv2.imshow('Hand Tracking', frame)
     #CheckForRequest()
     k = cv2.waitKey(1)
@@ -39,6 +47,7 @@ print(frame.shape)
 # Callibrate
 while(1):
     frame, mask_l, mask_r = ImageProcessing(tracking_area_l, tracking_area_r, cap, [lowest, highest, skin_tone], noisy_pixels_l, noisy_pixels_r)
+    if skin_darker_than_background: frame = 255 - frame
 
     col_l = [
         int(frame[circle_pos_l[1]][circle_pos_l[0]][0]),
@@ -112,6 +121,7 @@ while(1):
           #therefore this try error statement
           
         frame, mask_l, mask_r = ImageProcessing(tracking_area_l, tracking_area_r, cap, [lowest, highest, skin_tone], noisy_pixels_l, noisy_pixels_r)
+        if skin_darker_than_background: frame = 255 - frame
 
         roi_l=frame[
             tracking_area_l[0][0]:tracking_area_l[0][1],
@@ -135,12 +145,17 @@ while(1):
             #print(hand_positions)
             translated = (int(pos_l[0] * screensize_multiplier[0]), int(pos_l[1] * screensize_multiplier[1]))
             print("t" + str(translated))
+            stream.hand_l_pos_x = pos_l[0]
+            stream.hand_l_pos_y = pos_l[1]
+            stream.hand_r_pos_x = pos_r[0]
+            stream.hand_r_pos_y = pos_r[0]
             #moveTo(translated)
         except Exception as e: print('Exeption: ' + str(e))
 
         #show the windows
         masks = np.concatenate((mask_l, mask_r), axis=1)
         cv2.imshow('masks',masks)
+        if skin_darker_than_background: frame = 255 - frame
         cv2.imshow('Hand Tracking',frame)
 
         if not tracked:

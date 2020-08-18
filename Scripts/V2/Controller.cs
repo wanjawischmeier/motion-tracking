@@ -8,6 +8,7 @@ using Debug = UnityEngine.Debug;
 
 public class Controller : MonoBehaviour
 {
+    public byte[] settings;
     public string output;
     public int test;
     public int pos_x;
@@ -21,9 +22,9 @@ public class Controller : MonoBehaviour
         text = GameObject.Find("Text").GetComponent<Text>();
 
         MotionTracking.python_path = "C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python38-32\\python.exe";
-        MotionTracking.file_path = $"{Environment.CurrentDirectory}\\Assets\\motion-tracking\\Scripts\\Python\\streaming.py";
+        MotionTracking.file_path = $"{Environment.CurrentDirectory}\\Assets\\motion-tracking\\Scripts\\Python\\main.py";
 
-        stream = MotionTracking.Start(false);
+        stream = MotionTracking.Start(false, settings: settings);
 
         stream.BytesRecieved += Stream_OnBytesRecieved;
 

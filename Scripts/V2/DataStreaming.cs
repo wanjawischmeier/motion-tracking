@@ -32,7 +32,7 @@ namespace Streaming
         static BinaryStream stream;
         public static Hands hands;
 
-        public static BinaryStream Start(bool execute_async = true, bool listen_on_start = true)
+        public static BinaryStream Start(bool execute_async = true, bool listen_on_start = true, byte[] settings = null)
         {
             ProcessStartInfo processStartInfo = new ProcessStartInfo();
             processStartInfo.FileName = python_path;
@@ -51,7 +51,7 @@ namespace Streaming
             }
             else { process.Start(); }
 
-            stream = new BinaryStream(process);
+            stream = new BinaryStream(process, args: settings);
             stream.BytesRecieved += Stream_BytesRecieved;
 
             if (listen_on_start) stream.ListenForBytes();
@@ -83,32 +83,43 @@ namespace Streaming
 
         MemoryMappedViewStream stream;
         BinaryReader reader;
+        BinaryWriter writer;
         //StreamReader streamReader;
         Process process;
         int byte_length;
         bool quit = false;
 
-        public BinaryStream(Process process, string mmf_name = "motion_tracking_data_stream", int byte_length = 6)
+        public BinaryStream(Process process, string mmf_name = "motion_tracking_data_stream", int byte_length = 6, byte[] args = null)
         {
             //MemoryMappedFile mmf = MemoryMappedFile.OpenExisting(mmf_name);
             MemoryMappedFile mmf = MemoryMappedFile.CreateOrOpen(mmf_name, byte_length);
 
             stream = mmf.CreateViewStream();
             reader = new BinaryReader(stream);
+            writer = new BinaryWriter(stream);
             //streamReader = output;
             this.process = process;
             this.byte_length = byte_length;
+
+            if (args != null) writer.Write(args);
         }
 
         public async void ListenForBytes()
         {
+            //stream.Position = 0;
+            //writer.Write(1);
+
             while (!quit)
             {
                 await Task.Run(() => CheckForBytes());
             }
         }
 
-        public void StopListening() { quit = true; }
+        public void StopListening()
+        {
+            quit = true;
+            process.Kill();
+        }
 
         void CheckForBytes()
         {
