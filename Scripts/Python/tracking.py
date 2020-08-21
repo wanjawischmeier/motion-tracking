@@ -14,14 +14,78 @@ noisy_pixels_l = []
 noisy_pixels_r = []
 font = cv2.FONT_HERSHEY_SIMPLEX
 
-def ReadFrame(cap):
+def ReadFrame(cap, invert = False):
     ret, frame = cap.read()
     frame=cv2.flip(frame,1)
+    if invert: frame = 255 - frame
 
     return frame
 
-def ImageProcessing(tracking_area_l, tracking_area_r, cap, skin_colors, noisy_pixels_l, noisy_pixels_r):
-    frame = ReadFrame(cap)
+def GetAverageColorFromRegion(frame, position, region_size):
+    colors = []
+    average_color = [0, 0, 0]
+
+    for x in range(region_size):
+        for y in range(region_size):
+            try:
+                color = frame[position[0] + x][position[1]]
+                colors.append(color)
+            except:
+                pass
+
+            try:
+                color = frame[position[0] - x][position[1]]
+                colors.append(color)
+            except:
+                pass
+
+            try:
+                color = frame[position[0]][position[1] + y]
+                colors.append(color)
+            except:
+                pass
+
+            try:
+                color = frame[position[0]][position[1] - y]
+                colors.append(color)
+            except:
+                pass
+
+    for color in colors:
+        average_color[0] += color[0]
+        average_color[1] += color[1]
+        average_color[2] += color[2]
+
+    average_color[0] /= len(colors)
+    average_color[1] /= len(colors)
+    average_color[2] /= len(colors)
+    average_color[0] = int(average_color[0])
+    average_color[1] = int(average_color[1])
+    average_color[2] = int(average_color[2])
+
+    return average_color
+
+def DrawTracker(frame, position, score, samples):
+    cv2.ellipse(
+        frame, 
+        position, 
+        (samples +20, samples +20), 0, -90, 
+        (score /255 *360), 
+        [0, score, 255 - score], 
+        -1
+    )
+
+    cv2.ellipse(
+        frame, 
+        position, 
+        (samples +20, samples +20), 0, -90, 
+        (score /255 *360), 
+        [100, 200, 200], 
+        2
+    )
+
+def ImageProcessing(tracking_area_l, tracking_area_r, cap, skin_colors, noisy_pixels_l, noisy_pixels_r, skin_darker_than_background):
+    frame = ReadFrame(cap, skin_darker_than_background)
     
     kernel = np.ones((3,3),np.uint8)
     
@@ -35,8 +99,6 @@ def ImageProcessing(tracking_area_l, tracking_area_r, cap, skin_colors, noisy_pi
         tracking_area_r[1][0]:tracking_area_r[1][1]
     ]
     
-    cv2.rectangle(frame,(tracking_area_l[1][0],tracking_area_l[0][0]),(tracking_area_l[1][1],tracking_area_l[0][1]),(0,255,0),0)    
-    cv2.rectangle(frame,(tracking_area_r[1][0],tracking_area_r[0][0]),(tracking_area_r[1][1],tracking_area_r[0][1]),(0,255,0),0)    
     hsv_l = cv2.cvtColor(roi_l, cv2.COLOR_BGR2HSV)
     hsv_r = cv2.cvtColor(roi_r, cv2.COLOR_BGR2HSV)
     

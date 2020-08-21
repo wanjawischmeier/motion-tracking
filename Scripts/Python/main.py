@@ -2,13 +2,15 @@ import cv2
 import numpy as np
 import math
 import ctypes
-#from pyautogui import moveTo
 from tracking import *
 from streaming import *
 
-stream = DataStream(create=False)
+stream = DataStream(create=True)
+stream.settings.skin_tone = 255
+stream.settings.skin_darker_than_background = True
+stream.settings.samples = 20
+stream.settings.sensivity = 100
 #while stream.read == None: sleep(.2)
-stream.hand_l_pos_y = 24
 
 
 # Variables:
@@ -31,40 +33,91 @@ user32 = ctypes.windll.user32
 
 
 for i in range(40):
-    frame = ReadFrame(cap)
-    if skin_darker_than_background: frame = 255 - frame
+    frame = ReadFrame(cap, skin_darker_than_background)
     cv2.imshow('Hand Tracking', frame)
-    #CheckForRequest()
     k = cv2.waitKey(1)
 
-screensize_multiplier = (user32.GetSystemMetrics(0) / frame.shape[0], user32.GetSystemMetrics(1) / frame.shape[1])
-tracking_area_l = [(0, int(frame.shape[0] /4 *3)), (0, int(frame.shape[1] /2))]
-tracking_area_r = [(0, int(frame.shape[0] /4 *3)), (int(frame.shape[1] /2), int(frame.shape[1]))]
-circle_pos_l = (int(tracking_area_l[0][1] /2), int((tracking_area_l[1][1] /2)))
-circle_pos_r = (int(tracking_area_r[0][1] /2), int((tracking_area_r[1][1] /2)))
+screensize_multiplier = (
+    user32.GetSystemMetrics(0) / frame.shape[0], 
+    user32.GetSystemMetrics(1) / frame.shape[1]
+)
+
+tracking_area_l = (
+    (0, int(frame.shape[1] /2)),        # x-line
+    (0, int(frame.shape[0] /4 *3))      # y-line
+)
+tracking_area_r = (
+    (int(frame.shape[1] /2), int(frame.shape[1]) -1),
+    (0, int(frame.shape[0] /4 *3))
+)
+
+tracker_pos_l = (
+    int(tracking_area_l[0][1] /2), 
+    int((tracking_area_l[1][1] /2))
+)
+tracker_pos_r = (
+    int(tracking_area_r[0][1] /4 *3), 
+    int((tracking_area_r[1][1] /2))
+)
 print(frame.shape)
 
 # Callibrate
 while(1):
-    frame, mask_l, mask_r = ImageProcessing(tracking_area_l, tracking_area_r, cap, [lowest, highest, skin_tone], noisy_pixels_l, noisy_pixels_r)
-    if skin_darker_than_background: frame = 255 - frame
+    frame = ReadFrame(cap, skin_darker_than_background)
+    #frame, mask_l, mask_r = ImageProcessing(
+    #    tracking_area_l, 
+    #    tracking_area_r, 
+    #    cap, 
+    #    [
+    #        lowest, 
+    #        highest, 
+    #        skin_tone
+    #    ], 
+    #    noisy_pixels_l, 
+    #    noisy_pixels_r, 
+    #    skin_darker_than_background
+    #)
 
-    col_l = [
-        int(frame[circle_pos_l[1]][circle_pos_l[0]][0]),
-        int(frame[circle_pos_l[1]][circle_pos_l[0]][1]),
-        int(frame[circle_pos_l[1]][circle_pos_l[0]][2])
-    ]   
-    col_r = [
-        int(frame[circle_pos_r[1]][circle_pos_r[0]][0]),
-        int(frame[circle_pos_r[1]][circle_pos_r[0]][1]),
-        int(frame[circle_pos_r[1]][circle_pos_r[0]][2])
-    ]
+    index_x = tracker_pos_l[0]
+    index_y = tracker_pos_l[1]
+    col_l = GetAverageColorFromRegion(frame, (index_x, index_y), 10)
+    
+    index_x = tracker_pos_r[0]
+    index_y = tracker_pos_r[1]
+    col_r = GetAverageColorFromRegion(frame, (index_x, index_y), 10)
+    print(f'{col_l}  |  {frame[index_x][index_y]}')
     score_l = (col_l[1] + col_l[2]) /2
     score_r = (col_r[1] + col_r[2]) /2
 
-    cv2.putText(frame,str(score_l) + ' | ' + str(frames) + ' | ' + str(len(color_values_l)),(10,50), font, 2, ((0, 0, 255)), 3, cv2.LINE_AA)
-    cv2.circle(frame, circle_pos_l, 20, [0, score_l, 0], -1)
-    cv2.circle(frame, circle_pos_r, 20, [0, score_r, 0], -1)
+    result = f'{str(score_l)} | {str(frames)} | {str(len(color_values_l))}'
+    cv2.putText(frame, result, (10,50), font, 2, ((0, 0, 255)), 3, cv2.LINE_AA)
+
+
+    cv2.rectangle(frame,
+        (
+            tracking_area_l[0][0],
+            tracking_area_l[1][0]
+        ),
+        (
+            tracking_area_l[0][1] -2,
+            tracking_area_l[1][1]
+        ),
+        (0,255,0), 4)
+
+    cv2.rectangle(frame,
+        (
+            tracking_area_r[0][0] +2,
+            tracking_area_r[1][0]
+        ),
+        (
+            tracking_area_r[0][1],
+            tracking_area_r[1][1]
+        ),
+        (255,0,0), 4)
+
+    DrawTracker(frame, tracker_pos_l, score_l, len(color_values_l))
+    DrawTracker(frame, tracker_pos_r, score_r, len(color_values_r))
+
     cv2.imshow('Hand Tracking',frame)
     frames += 1
     
@@ -73,14 +126,16 @@ while(1):
     if score_r > skin_tone:
         if len(color_values_r) < samples: color_values_r.append(col_r)
 
-    elif score_l < skin_tone and score_r < skin_tone and len(color_values_l) >= samples:
+    if score_l < skin_tone and score_r < skin_tone and len(color_values_l) >= samples and len(color_values_r) >= samples:
         
         for i in range(40):
-            frame, mask_l, mask_r = ImageProcessing(tracking_area_l, tracking_area_r, cap, [lowest, highest, skin_tone], noisy_pixels_l, noisy_pixels_r)
+            frame = ReadFrame(cap, skin_darker_than_background)
 
             cv2.imshow('Hand Tracking', frame)
             cv2.waitKey(1)
         
+        frame, mask_l, mask_r = ImageProcessing(tracking_area_l, tracking_area_r, cap, [lowest, highest, skin_tone], noisy_pixels_l, noisy_pixels_r, skin_darker_than_background)
+
         for x in range(mask_l.shape[0]):
             for y in range(mask_l.shape[1]):
                 if mask_l[x][y] > 200:
@@ -120,7 +175,7 @@ while(1):
     #try:  #an error comes if it does not find anything in window as it cannot find contour of max area
           #therefore this try error statement
           
-        frame, mask_l, mask_r = ImageProcessing(tracking_area_l, tracking_area_r, cap, [lowest, highest, skin_tone], noisy_pixels_l, noisy_pixels_r)
+        frame, mask_l, mask_r = ImageProcessing(tracking_area_l, tracking_area_r, cap, [lowest, highest, skin_tone], noisy_pixels_l, noisy_pixels_r, skin_darker_than_background)
         if skin_darker_than_background: frame = 255 - frame
 
         roi_l=frame[

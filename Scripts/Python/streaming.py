@@ -33,11 +33,10 @@ class DataStream:
         #self.__buffer[0] = 1        # Comment this line out later, to only start writing when 'read' byte is set to true by C#
 
         self.settings = Settings()
-        self.settings.skin_tone                     = self.__buffer[0]
-        self.settings.skin_darker_than_background   = self.__buffer[1]
-        self.settings.samples                       = self.__buffer[2]
-        self.settings.sensivity                     = self.__buffer[3]
-        self.prepared                               = True
+        #self.settings.skin_tone                     = self.__buffer[0]
+        #self.settings.skin_darker_than_background   = self.__buffer[1]
+        #self.settings.samples                       = self.__buffer[2]
+        #self.settings.sensivity                     = self.__buffer[3]
 
         # self.read     = 0         # Will be set to True by C# if it wants to recieve data |   [0]         (Should not actually be set here)
         self.hand_l_pos_x      = 0  # The x position                                        |   [1]
