@@ -21,6 +21,21 @@ def ReadFrame(cap, invert = False):
 
     return frame
 
+def GetAverageColor(colors):
+    average_color = [0, 0, 0]
+    samples = len(colors)
+
+    for color in colors:
+        average_color[0] += color[0]
+        average_color[1] += color[1]
+        average_color[2] += color[2]
+
+    average_color[0] = round(average_color[0] / samples)
+    average_color[1] = round(average_color[1] / samples)
+    average_color[2] = round(average_color[2] / samples)
+
+    return average_color
+
 def GetAverageColorFromRegion(frame, position, region_size):
     colors = []
     average_color = [0, 0, 0]
@@ -56,9 +71,11 @@ def GetAverageColorFromRegion(frame, position, region_size):
         average_color[1] += color[1]
         average_color[2] += color[2]
 
-    average_color[0] /= len(colors)
-    average_color[1] /= len(colors)
-    average_color[2] /= len(colors)
+    samples = len(colors)
+
+    average_color[0] /= samples
+    average_color[1] /= samples
+    average_color[2] /= samples
     average_color[0] = int(average_color[0])
     average_color[1] = int(average_color[1])
     average_color[2] = int(average_color[2])

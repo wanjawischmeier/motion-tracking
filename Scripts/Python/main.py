@@ -6,7 +6,7 @@ from tracking import *
 from streaming import *
 
 stream = DataStream(create=True)
-stream.settings.skin_tone = 255
+stream.settings.skin_tone = 200
 stream.settings.skin_darker_than_background = True
 stream.settings.samples = 20
 stream.settings.sensivity = 100
@@ -15,6 +15,7 @@ stream.settings.sensivity = 100
 
 # Variables:
 
+softening = 4
 skin_tone                   = stream.settings.skin_tone
 skin_darker_than_background = stream.settings.skin_darker_than_background
 samples                     = stream.settings.samples
@@ -23,19 +24,17 @@ sensivity                   = stream.settings.sensivity
 # __________
 
 
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 cv2.namedWindow('Hand Tracking')
 tracked = False
 frames = 0
 lowest = [0, 5, 20]
 highest = [255, 150, 200]
+bg_colors = []
+bg_color = []
 user32 = ctypes.windll.user32
 
-
-for i in range(40):
-    frame = ReadFrame(cap, skin_darker_than_background)
-    cv2.imshow('Hand Tracking', frame)
-    k = cv2.waitKey(1)
+frame = ReadFrame(cap, skin_darker_than_background)
 
 screensize_multiplier = (
     user32.GetSystemMetrics(0) / frame.shape[0], 
@@ -59,37 +58,77 @@ tracker_pos_r = (
     int(tracking_area_r[0][1] /4 *3), 
     int((tracking_area_r[1][1] /2))
 )
+
 print(frame.shape)
+
+
+for i in range(100):
+    frame = ReadFrame(cap, skin_darker_than_background)
+
+    index_x = tracker_pos_l[0]
+    index_y = tracker_pos_l[1]
+    col_l = GetAverageColorFromRegion(frame, (index_x, index_y), 20)
+    
+    index_x = tracker_pos_r[1]
+    index_y = tracker_pos_r[0]
+    col_r = GetAverageColorFromRegion(frame, (index_x, index_y), 20)
+
+    bg_colors.append(col_l)
+    bg_colors.append(col_r)
+
+    score = i /100 * (frame.shape[1] /2)
+
+    cv2.rectangle(
+        frame, 
+        (
+            tracker_pos_l[0], 
+            tracker_pos_l[1]
+        ), 
+        (
+            tracker_pos_r[0] - round((frame.shape[1] /2) - score), 
+            tracker_pos_r[1]
+        ), 
+        [100, 200, 0], 
+        6
+    )
+    
+    cv2.rectangle(
+        frame, 
+        (
+            tracker_pos_l[0], 
+            tracker_pos_l[1] -10
+        ), 
+        (
+            tracker_pos_r[0], 
+            tracker_pos_r[1] +10
+        ), 
+        [100, 200, 0], 
+        6
+    )
+
+    cv2.imshow('Hand Tracking', frame)
+    k = cv2.waitKey(1)
+
+bg_color = GetAverageColor(bg_colors)
+print(bg_color)
 
 # Callibrate
 while(1):
     frame = ReadFrame(cap, skin_darker_than_background)
-    #frame, mask_l, mask_r = ImageProcessing(
-    #    tracking_area_l, 
-    #    tracking_area_r, 
-    #    cap, 
-    #    [
-    #        lowest, 
-    #        highest, 
-    #        skin_tone
-    #    ], 
-    #    noisy_pixels_l, 
-    #    noisy_pixels_r, 
-    #    skin_darker_than_background
-    #)
 
     index_x = tracker_pos_l[0]
     index_y = tracker_pos_l[1]
-    col_l = GetAverageColorFromRegion(frame, (index_x, index_y), 10)
+    col_l = GetAverageColorFromRegion(frame, (index_x, index_y), softening)
     
-    index_x = tracker_pos_r[0]
-    index_y = tracker_pos_r[1]
-    col_r = GetAverageColorFromRegion(frame, (index_x, index_y), 10)
-    print(f'{col_l}  |  {frame[index_x][index_y]}')
+    index_x = tracker_pos_r[1]
+    index_y = tracker_pos_r[0]
+    col_r = GetAverageColorFromRegion(frame, (index_x, index_y), softening)
+    #print(f'{col_l}  |  {frame[index_x][index_y]}')
+
     score_l = (col_l[1] + col_l[2]) /2
     score_r = (col_r[1] + col_r[2]) /2
 
-    result = f'{str(score_l)} | {str(frames)} | {str(len(color_values_l))}'
+    result = f'{str(score_l)} | {str(frames)} | {str(len(color_values_l))} / {str(len(color_values_r))}'
     cv2.putText(frame, result, (10,50), font, 2, ((0, 0, 255)), 3, cv2.LINE_AA)
 
 
@@ -118,7 +157,21 @@ while(1):
     DrawTracker(frame, tracker_pos_l, score_l, len(color_values_l))
     DrawTracker(frame, tracker_pos_r, score_r, len(color_values_r))
 
-    cv2.imshow('Hand Tracking',frame)
+    frame_b, frame_g, frame_r = cv2.split(frame)
+
+    frame = cv2.hconcat([
+        frame, 
+        cv2.merge((frame_b, frame_b, frame_b))
+    ])
+    frame = cv2.vconcat([
+        frame, 
+        cv2.hconcat([
+            cv2.merge((frame_g, frame_g, frame_g)), 
+            cv2.merge((frame_r, frame_r, frame_r))
+        ])
+    ])
+
+    cv2.imshow('Hand Tracking', frame)
     frames += 1
     
     if score_l > skin_tone:
@@ -147,7 +200,7 @@ while(1):
                     noisy_pixels_r.append((y, x))
         
         break
-        
+
     k = cv2.waitKey(1) & 0xFF
     if k == 27: break
     
